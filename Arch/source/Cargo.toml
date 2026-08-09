@@ -1,5 +1,0 @@
-[workspace]
-members = [ "analytics-service", "api-service",
-    "core",
-    "loader-service"
-]
