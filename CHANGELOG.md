@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
-| Version | Date       | Summary |
-|---------|------------|---------|
-| 0.0.2   | 2026-09-14 | Scaffolded FastAPI project with ingestion and API endpoints |
-| 0.0.1   | 2026-09-14 | Init project with `uv`, venv, ruff, and core docs |
+| Version | Feature Domain | Key Objective |
+|---------|----------------|---------------|
+| 0.0.2   | Backend API    | Scaffold FastAPI service with document ingestion and query endpoints |
+| 0.0.1   | Project Setup  | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [0.0.2] - 2026-09-14
 
