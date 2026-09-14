@@ -20,3 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Init project with `uv --bare`
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
+
+[0.0.2]: https://github.com/mezni/rag-project/releases/tag/v0.0.2
+[0.0.1]: https://github.com/mezni/rag-project/releases/tag/v0.0.1
