@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ChromaDB ingestion pipeline (`src/ingestion.py`): scan `data/raw` → load & chunk → embed → store
+- `src/config.py` with pydantic-settings, reading all config from `.env`
+- Minimal Streamlit app (`src/app.py`); added `streamlit` dependency
+- Added `chromadb`, `pydantic-settings` dependencies
+
+### Changed
+- `Chunk` is now a pydantic `BaseModel`; settings loaded via pydantic-settings
+- `src/api.py` uses pydantic response models (`HealthResponse`, `IngestResponse`)
+- Renamed `src/pipeline.py` to `src/ingestion.py`
+
 ## Version History
 
 | Version | Feature Domain | Key Objective |
