@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Version History
+
+| Version | Feature Domain     | Key Objective |
+|---------|--------------------|---------------|
+| 0.0.5   | Retrieval Pipeline | Embed query, vector search, context assembly, and LLM answer generation |
+| 0.0.4   | Automated Tests    | Unit, integration, and e2e test suites for ingestion pipeline and API |
+| 0.0.3   | Ingestion Pipeline | ChromaDB scan→chunk→embed→store pipeline with pydantic config and Streamlit UI |
+| 0.0.2   | Backend API        | Scaffold FastAPI service with document ingestion and query endpoints |
+| 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
+
 ## [Unreleased]
 
 ## [0.0.5] - 2026-09-14
@@ -21,16 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration tests for the ChromaDB pipeline (`tests/integration/`)
 - End-to-end API tests (`tests/e2e/`)
 - `pytest` and `httpx` dev dependencies and pytest config in `pyproject.toml`
-
-## Version History
-
-| Version | Feature Domain     | Key Objective |
-|---------|--------------------|---------------|
-| 0.0.5   | Retrieval Pipeline | Embed query, vector search, context assembly, and LLM answer generation |
-| 0.0.4   | Automated Tests    | Unit, integration, and e2e test suites for ingestion pipeline and API |
-| 0.0.3   | Ingestion Pipeline | ChromaDB scan→chunk→embed→store pipeline with pydantic config and Streamlit UI |
-| 0.0.2   | Backend API        | Scaffold FastAPI service with document ingestion and query endpoints |
-| 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [0.0.3] - 2026-09-14
 
