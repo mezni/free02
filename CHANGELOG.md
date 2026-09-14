@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.6   | Evalution Pipeline  | Rank-based retrieval metrics and LLM-as-judge grounding scores |
 | 0.0.5   | Retrieval Pipeline | Embed query, vector search, context assembly, and LLM answer generation |
 | 0.0.4   | Automated Tests    | Unit, integration, and e2e test suites for ingestion pipeline and API |
 | 0.0.3   | Ingestion Pipeline | ChromaDB scan→chunk→embed→store pipeline with pydantic config and Streamlit UI |
@@ -16,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.6] - 2026-09-14
+
+### Added
+- Evaluation pipeline (`src/evaluation.py`): rank-based retrieval metrics (MRR, hit rate, precision@k, recall@k) and LLM-as-judge answer grounding scores
+- Pydantic schemas for evaluation (`EvalCase`, `RankingMetrics`, `CaseResult`, `RetrievalEvaluation`, `Judgement`)
+- `Judge` abstraction with OpenAI-compatible LLM rubric judge and offline stub; `--cases` JSONL CLI for evaluating retrieval
 
 ## [0.0.5] - 2026-09-14
 
@@ -59,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.6]: https://github.com/mezni/rag-project/releases/tag/v0.0.6
 [0.0.5]: https://github.com/mezni/rag-project/releases/tag/v0.0.5
 [0.0.4]: https://github.com/mezni/rag-project/releases/tag/v0.0.4
 [0.0.3]: https://github.com/mezni/rag-project/releases/tag/v0.0.3
