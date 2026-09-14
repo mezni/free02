@@ -109,7 +109,10 @@ def run_pipeline(
         chunks.extend(load_and_chunk(path, chunk_size, overlap))
 
     client = chromadb.PersistentClient(path=str(persist_dir))
-    store(chunks, embedder or ChromaEmbedder(), client)
+    try:
+        store(chunks, embedder or ChromaEmbedder(), client)
+    finally:
+        client.close()
     return chunks
 
 
