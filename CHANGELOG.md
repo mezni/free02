@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-14
+
 ### Added
 - ChromaDB ingestion pipeline (`src/ingestion.py`): scan `data/raw` → load & chunk → embed → store
 - `src/config.py` with pydantic-settings, reading all config from `.env`
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain | Key Objective |
 |---------|----------------|---------------|
+| 0.1.0   | Ingestion Pipeline | ChromaDB scan→chunk→embed→store pipeline with pydantic config and Streamlit UI |
 | 0.0.2   | Backend API    | Scaffold FastAPI service with document ingestion and query endpoints |
 | 0.0.1   | Project Setup  | Initialize project with `uv`, venv, ruff, and core docs |
 
@@ -39,5 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.1.0]: https://github.com/mezni/rag-project/releases/tag/v0.1.0
 [0.0.2]: https://github.com/mezni/rag-project/releases/tag/v0.0.2
 [0.0.1]: https://github.com/mezni/rag-project/releases/tag/v0.0.1
