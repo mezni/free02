@@ -1,19 +1,16 @@
-"""Application entry point."""
+"""Minimal Streamlit app."""
 
-import uvicorn
-from fastapi import FastAPI
+import streamlit as st
 
-from src.api import router
-from src.ingestion import ingest_dir
+from src.ingestion import run_pipeline, scan_documents
 
-app = FastAPI(title="rag-project")
-app.include_router(router)
+st.set_page_config(page_title="rag-project", layout="wide")
+st.title("rag-project")
 
+if st.button("Re-ingest data/raw"):
+    chunks = run_pipeline()
+    st.success(f"Ingested {len(chunks)} chunk(s)")
 
-def main() -> None:
-    ingest_dir()
-    uvicorn.run("src.app:app", host="0.0.0.0", port=8000, reload=True)
-
-
-if __name__ == "__main__":
-    main()
+st.subheader("Documents in data/raw")
+for path in scan_documents():
+    st.write(path.name)

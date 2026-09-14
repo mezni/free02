@@ -3,7 +3,10 @@ name = "rag-project"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "chromadb>=1.5.9",
     "fastapi>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "streamlit>=1.63.0",
 ]
 
 [dependency-groups]
