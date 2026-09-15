@@ -1,5 +1,7 @@
 """Retrieval data models shared across the pipeline, API, and evaluation."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -17,7 +19,13 @@ class RetrievedChunk(BaseModel):
     text: str
     source: str
     index: int
-    distance: float
+    distance: float = Field(default=0.0, description="Vector similarity distance (lower is better)")
+    score: float = Field(
+        default=0.0, description="Fusion/rerank score (higher is better)"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Document metadata payload from the chunk row"
+    )
 
     @property
     def id(self) -> str:

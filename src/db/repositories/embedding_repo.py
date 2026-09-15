@@ -31,11 +31,19 @@ class EmbeddingRepository:
         top_k: int = 5,
         *,
         tenant_id: str | None = None,
+        filters: list | None = None,
     ) -> list[tuple[Chunk, float]]:
-        """Return (chunk, cosine_distance) rows ordered by relevance."""
-        filters = [Chunk.is_active.is_(True)]
-        if tenant_id is not None:
-            filters.append(Chunk.doc_metadata["tenant_id"].astext == tenant_id)
+        """Return (chunk, cosine_distance) rows ordered by relevance.
+
+        ``filters`` carries a full SQLAlchemy predicate list built by a strategy
+        (e.g. ``FilterBundle.as_predicates``). When provided it is used as-is and
+        the legacy ``tenant_id`` shorthand is ignored; callers wanting tenancy
+        enforcement should include it in the predicate list.
+        """
+        if filters is None:
+            filters = [Chunk.is_active.is_(True)]
+            if tenant_id is not None:
+                filters.append(Chunk.doc_metadata["tenant_id"].astext == tenant_id)
 
         distance = Chunk.embedding.cosine_distance(query_vector).label("distance")
         stmt = (
