@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.10  | Stage-Based Ingestion | Ingestion split into discrete stages (discover, parse, clean, chunk, enrich, embed, persist) |
 | 0.0.9   | Domain Entities    | Dedicated domain model layer (document, chunk); design doc added |
 | 0.0.8   | Chunking & Lineage  | Chunk identity, vector metadata payload, and run→doc→chunk lineage; design doc added |
 | 0.0.7   | Document Lifecycle & Lineage | Versioned document registry with run lineage; design doc added |
@@ -20,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.10] - 2026-09-14
+
+### Added
+- Stage-based ingestion pipeline (`src/ingestion/stages/`): `discover` (filesystem scan, fingerprint, lifecycle resolution), `parse` (raw text loading), `clean` (text normalization), `chunk` (content splitting), `enrich` (document metadata injection), `embed` (embedding abstraction), `persist` (registry/vector/run-log writes)
+
+### Changed
+- `src/ingestion/pipeline.py` refactored into a thin orchestrator that runs the stages in order; lifecycle resolution no longer writes the registry — the orchestrator persists it after discovery
+- Public API unchanged: `src/ingestion/__init__.py` re-exports stage functions alongside the pipeline models and composite `load_and_chunk`
 
 ## [0.0.9] - 2026-09-14
 
@@ -108,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.10]: https://github.com/mezni/rag-project/releases/tag/v0.0.10
 [0.0.9]: https://github.com/mezni/rag-project/releases/tag/v0.0.9
 [0.0.8]: https://github.com/mezni/rag-project/releases/tag/v0.0.8
 [0.0.7]: https://github.com/mezni/rag-project/releases/tag/v0.0.7
