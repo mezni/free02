@@ -2,30 +2,33 @@
 
 import chromadb
 
-from src.ingestion import ChromaEmbedder, Chunk, store
+from src.ingestion import ChromaEmbedder, Chunk, store_chunks
 from src.retrieval import Query, RetrievalPipeline, StubLLM
+
+
+def _chunk(text: str, index: int) -> Chunk:
+    return Chunk(
+        text=text,
+        run_id="run-1",
+        doc_id="sop.md:v1",
+        index=index,
+        doc_metadata={
+            "relative_path": "sop.md",
+            "version_tag": "v1",
+            "tenant_id": "acme",
+            "is_active": True,
+        },
+    )
 
 
 def _seed(persist) -> None:
     client = chromadb.PersistentClient(path=str(persist))
     chunks = [
-        Chunk(
-            text="The late fee is 15 dollars after the grace period.",
-            source="sop.md",
-            index=0,
-        ),
-        Chunk(
-            text="Payment is due 20 days from invoice issuance.",
-            source="sop.md",
-            index=1,
-        ),
-        Chunk(
-            text="The service is suspended after 45 days past due.",
-            source="sop.md",
-            index=2,
-        ),
+        _chunk("The late fee is 15 dollars after the grace period.", 0),
+        _chunk("Payment is due 20 days from invoice issuance.", 1),
+        _chunk("The service is suspended after 45 days past due.", 2),
     ]
-    store(chunks, ChromaEmbedder(), client)
+    store_chunks(chunks, ChromaEmbedder(), client, "documents")
     client.close()
 
 
@@ -55,4 +58,18 @@ def test_build_prompt_includes_top_matching_chunk(tmp_path):
     pipeline.close()
 
     # Chroma keeps the file handle open until the process exits.
+    chromadb.PersistentClient(path=str(persist)).close()
+
+
+def test_search_filters_by_tenant(tmp_path):
+    persist = tmp_path / "chroma"
+    _seed(persist)
+
+    pipeline = RetrievalPipeline(llm=StubLLM(), persist_dir=persist)
+    result = pipeline.search(Query(text="late fee", top_k=5, tenant_id="acme"))
+
+    assert len(result.chunks) > 0
+    assert all(source.source == "sop.md" for source in result.chunks)
+    pipeline.close()
+
     chromadb.PersistentClient(path=str(persist)).close()

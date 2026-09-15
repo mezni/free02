@@ -22,6 +22,9 @@ class Query(BaseModel):
     top_k: int = Field(
         default=5, ge=1, le=20, description="Number of chunks to retrieve"
     )
+    tenant_id: str | None = Field(
+        default=None, description="Restrict retrieval to this tenant"
+    )
 
 
 class RetrievedChunk(BaseModel):
@@ -125,13 +128,14 @@ class RetrievalPipeline:
         results = self._collection.query(
             query_embeddings=[self.embed_query(query)],
             n_results=query.top_k,
+            where=self._where(query),
             include=["documents", "metadatas", "distances"],
         )
         chunks = [
             RetrievedChunk(
                 text=document,
-                source=metadata["source"],
-                index=metadata["index"],
+                source=metadata.get("relative_path") or metadata.get("source", ""),
+                index=metadata.get("chunk_index") or metadata.get("index", 0),
                 distance=distance,
             )
             for document, metadata, distance in zip(
@@ -141,6 +145,15 @@ class RetrievalPipeline:
             )
         ]
         return RetrievalResult(query=query.text, chunks=chunks)
+
+    def _where(self, query: Query) -> dict:
+        """Step 2a: build a metadata filter, honouring multitenancy."""
+        conditions: list[dict] = [{"is_active": True}]
+        if query.tenant_id:
+            conditions.append({"tenant_id": query.tenant_id})
+        if len(conditions) == 1:
+            return conditions[0]
+        return {"$and": conditions}
 
     def build_context(self, result: RetrievalResult) -> str:
         """Step 3a: assemble retrieved chunks into labelled context blocks."""

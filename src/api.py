@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from src.ingestion import run_pipeline, scan_documents
+from src.ingestion import PipelineConfig, run_pipeline, scan_documents
 
 router = APIRouter()
 
@@ -28,5 +28,5 @@ def list_documents() -> list[str]:
 
 @router.post("/ingest", response_model=IngestResponse)
 def ingest() -> IngestResponse:
-    chunks = run_pipeline()
+    _, chunks = run_pipeline(PipelineConfig())
     return IngestResponse(ingested=len(chunks))
