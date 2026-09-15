@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.9   | Domain Entities    | Dedicated domain model layer (document, chunk); design doc added |
 | 0.0.8   | Chunking & Lineage  | Chunk identity, vector metadata payload, and run→doc→chunk lineage; design doc added |
 | 0.0.7   | Document Lifecycle & Lineage | Versioned document registry with run lineage; design doc added |
 | 0.0.6   | Evaluation Pipeline  | Rank-based retrieval metrics and LLM-as-judge grounding scores |
@@ -19,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.9] - 2026-09-14
+
+### Added
+- Domain entities design (`docs/design-domain-entities.md`): entity catalogue, relationships, invariants, and the layering rationale for a dedicated domain model package
+- Dedicated domain model layer (`src/domain/models/`): `document.py` (`SourceType`, `FileState`, `DiscoveredDocument`, `DocumentRecord`) and `chunk.py` (`Chunk`)
+
+### Changed
+- Moved `src/ingestion.py` → `src/ingestion/pipeline.py`; new `src/ingestion/__init__.py` re-exports the public API so downstream imports are unchanged
+- `Chunk` and document models moved out of the pipeline module into `src/domain/models/`; pipeline imports and re-exports them
+- Removed the redundant `src/models/` package in favour of the domain models package
 
 ## [0.0.8] - 2026-09-14
 
@@ -96,6 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.9]: https://github.com/mezni/rag-project/releases/tag/v0.0.9
 [0.0.8]: https://github.com/mezni/rag-project/releases/tag/v0.0.8
 [0.0.7]: https://github.com/mezni/rag-project/releases/tag/v0.0.7
 [0.0.6]: https://github.com/mezni/rag-project/releases/tag/v0.0.6
