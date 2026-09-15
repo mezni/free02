@@ -10,9 +10,11 @@ def setup_logging(level: int = logging.INFO) -> None:
     """Configure the root logger once, idempotently.
 
     Safe to call from any entrypoint (CLI, API, Streamlit); existing handlers
-    are left intact so repeated calls do not stack duplicate handlers.
+    are left intact so repeated calls do not stack duplicate handlers. A later
+    call with a different level still updates the root logger's level.
     """
     if logging.getLogger().handlers:
+        logging.getLogger().setLevel(level)
         return
     logging.basicConfig(
         level=level,

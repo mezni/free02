@@ -4,6 +4,10 @@ from src.domain.models.chunk import Chunk
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+    if overlap >= chunk_size:
+        raise ValueError(
+            f"overlap ({overlap}) must be less than chunk_size ({chunk_size})"
+        )
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
     chunks: list[str] = []
     current = ""

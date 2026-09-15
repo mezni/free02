@@ -57,9 +57,6 @@ def test_build_prompt_includes_top_matching_chunk(tmp_path):
     assert "late fee" in result.chunks[0].text.lower()
     pipeline.close()
 
-    # Chroma keeps the file handle open until the process exits.
-    chromadb.PersistentClient(path=str(persist)).close()
-
 
 def test_search_filters_by_tenant(tmp_path):
     persist = tmp_path / "chroma"
@@ -71,5 +68,3 @@ def test_search_filters_by_tenant(tmp_path):
     assert len(result.chunks) > 0
     assert all(source.source == "sop.md" for source in result.chunks)
     pipeline.close()
-
-    chromadb.PersistentClient(path=str(persist)).close()

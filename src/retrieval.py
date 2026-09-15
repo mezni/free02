@@ -117,6 +117,7 @@ class RetrievalPipeline:
     def close(self) -> None:
         if isinstance(self._llm, OpenAICompatibleLLM):
             self._llm.close()
+        self._client.close()
 
     def embed_query(self, query: Query) -> list[float]:
         """Step 1: normalize and embed the query."""
@@ -131,19 +132,23 @@ class RetrievalPipeline:
             where=self._where(query),
             include=["documents", "metadatas", "distances"],
         )
-        chunks = [
-            RetrievedChunk(
-                text=document,
-                source=metadata.get("relative_path") or metadata.get("source", ""),
-                index=metadata.get("chunk_index") or metadata.get("index", 0),
-                distance=distance,
+        chunks = []
+        for document, metadata, distance in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        ):
+            index = metadata.get("chunk_index")
+            if index is None:
+                index = metadata.get("index", 0)
+            chunks.append(
+                RetrievedChunk(
+                    text=document,
+                    source=metadata.get("relative_path") or metadata.get("source", ""),
+                    index=index,
+                    distance=distance,
+                )
             )
-            for document, metadata, distance in zip(
-                results["documents"][0],
-                results["metadatas"][0],
-                results["distances"][0],
-            )
-        ]
         return RetrievalResult(query=query.text, chunks=chunks)
 
     def _where(self, query: Query) -> dict:

@@ -7,6 +7,13 @@ from src.domain.models.document import (
     FileState,
     SourceType,
 )
+from src.ingestion.parsers import (
+    BaseParser,
+    MarkdownParser,
+    ParsedDocument,
+    PlainTextParser,
+    Section,
+)
 from src.ingestion.pipeline import (
     PipelineConfig,
     PipelineRun,
@@ -25,7 +32,11 @@ from src.ingestion.stages.discover import (
 )
 from src.ingestion.stages.embed import ChromaEmbedder, Embedder
 from src.ingestion.stages.enrich import enrich_chunks
-from src.ingestion.stages.parse import parse_document
+from src.ingestion.stages.parse import (
+    parse_document,
+    parse_document_structured,
+    register_parser,
+)
 from src.ingestion.stages.persist import (
     deactivate_old_vector_chunks,
     log_pipeline_run,
@@ -34,15 +45,20 @@ from src.ingestion.stages.persist import (
 )
 
 __all__ = [
+    "BaseParser",
     "ChromaEmbedder",
     "Chunk",
     "DiscoveredDocument",
     "DocumentRecord",
     "Embedder",
     "FileState",
+    "MarkdownParser",
+    "ParsedDocument",
     "PipelineConfig",
     "PipelineRun",
+    "PlainTextParser",
     "RunStatus",
+    "Section",
     "SourceType",
     "build_chunks",
     "chunk_text",
@@ -55,6 +71,8 @@ __all__ = [
     "load_and_chunk",
     "log_pipeline_run",
     "parse_document",
+    "parse_document_structured",
+    "register_parser",
     "resolve_file_lifecycles",
     "run_pipeline",
     "scan_documents",

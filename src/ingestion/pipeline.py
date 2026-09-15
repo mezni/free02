@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import shutil
 import time
 import uuid
 from datetime import UTC, datetime
@@ -51,6 +50,13 @@ class PipelineConfig(BaseModel):
     overlap: int = Field(default=settings.overlap, ge=0)
     source: SourceType = Field(default=SourceType.FILESYSTEM)
     recreate: bool = Field(default=False)
+    tenant_id: str = Field(default="tenant_acme_corp")
+    access_roles: list[str] = Field(
+        default_factory=lambda: ["internal_user", "engineering"]
+    )
+    classification: str = Field(default="internal")
+    department: str = Field(default="engineering")
+    category: str = Field(default="documentation")
 
 
 class PipelineRun(BaseModel):
@@ -93,17 +99,20 @@ def run_pipeline(
     start_time = time.perf_counter()
     chunks: list[Chunk] = []
 
-    if config.recreate and config.persist_dir.exists():
-        shutil.rmtree(config.persist_dir)
-
     client = chromadb.PersistentClient(path=str(config.persist_dir))
+    if config.recreate:
+        for existing in client.list_collections():
+            if existing.name == config.collection_name:
+                client.delete_collection(name=config.collection_name)
+                break
 
     try:
-        new_active, deactivated = resolve_file_lifecycles(config, client)
+        new_active, deactivated, unchanged = resolve_file_lifecycles(config, client)
 
         run.files_new = sum(1 for r in new_active if r.state == FileState.NEW)
         run.files_modified = sum(1 for r in new_active if r.state == FileState.MODIFIED)
         run.files_deleted = sum(1 for r in deactivated if r.state == FileState.DELETED)
+        run.files_unchanged = len(unchanged)
 
         registry = client.get_or_create_collection(name=config.registry_collection_name)
         update_registry(registry, [*new_active, *deactivated])

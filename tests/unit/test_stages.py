@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 
 import chromadb
+import pytest
 
 from src.domain.models.chunk import Chunk
 from src.ingestion import (
@@ -16,6 +17,7 @@ from src.ingestion import (
     RunStatus,
     SourceType,
     build_chunks,
+    chunk_text,
     clean_text,
     compute_file_hash,
     deactivate_old_vector_chunks,
@@ -104,6 +106,11 @@ def test_clean_text_strips_bom_and_normalizes_newlines():
 
 def test_clean_text_preserves_paragraph_separators():
     assert clean_text("a\n\nb\n\nc") == "a\n\nb\n\nc"
+
+
+def test_chunk_text_rejects_overlap_gte_chunk_size():
+    with pytest.raises(ValueError, match="overlap"):
+        chunk_text("x" * 50, chunk_size=20, overlap=20)
 
 
 # --- Chunk stage ---
@@ -198,13 +205,14 @@ def test_resolve_lifecycles_marks_new_files(tmp_path):
     (raw / "b.md").write_text("beta", encoding="utf-8")
     client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
 
-    new_active, deactivated = resolve_file_lifecycles(
+    new_active, deactivated, unchanged = resolve_file_lifecycles(
         PipelineConfig(raw_dir=raw, persist_dir=tmp_path / "chroma"), client
     )
 
     assert {rec.state for rec in new_active} == {FileState.NEW}
     assert {rec.doc_id for rec in new_active} == {"a.md:v1", "b.md:v1"}
     assert deactivated == []
+    assert unchanged == []
 
 
 def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
@@ -214,6 +222,7 @@ def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
     client = chromadb.PersistentClient(path=str(persist))
 
     (raw / "doc.md").write_text("alpha", encoding="utf-8")
+    (raw / "stable.md").write_text("stable", encoding="utf-8")
     (raw / "gone.md").write_text("gone", encoding="utf-8")
 
     registry = client.get_or_create_collection(name="documents_registry")
@@ -235,14 +244,14 @@ def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
                 source=SourceType.FILESYSTEM,
             ),
         )
-        for name in ("doc.md", "gone.md")
+        for name in ("doc.md", "stable.md", "gone.md")
     ]
     update_registry(registry, seed_records)
 
     (raw / "doc.md").write_text("alpha changed", encoding="utf-8")
     (raw / "gone.md").unlink()
 
-    new_active, deactivated = resolve_file_lifecycles(
+    new_active, deactivated, unchanged = resolve_file_lifecycles(
         PipelineConfig(raw_dir=raw, persist_dir=persist), client
     )
 
@@ -254,6 +263,8 @@ def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
         for rec in deactivated
         if rec.discovered_doc.relative_path == "gone.md"
     } == {FileState.DELETED}
+    assert {rec.doc_id for rec in unchanged} == {"stable.md:v1"}
+    assert unchanged[0].state == FileState.UNCHANGED
 
 
 # --- Embed stage ---
