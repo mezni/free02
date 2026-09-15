@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.16  | pgvector Persistence | Persistence moved from ChromaDB to PostgreSQL/pgvector; ChromaDB removed |
 | 0.0.15  | LlamaIndex Embeddings | HuggingFaceEmbedding (BAAI/bge-small-en-v1.5) via Settings.embed_model |
 | 0.0.14  | LlamaIndex Chunking | Document Structure-Based Chunking (MarkdownNodeParser) for markdown; Fixed-Size Chunking (TokenTextSplitter) for others |
 | 0.0.13  | LlamaIndex Parsers | Parsers reimplemented on LlamaIndex (SimpleDirectoryReader + MarkdownNodeParser) |
@@ -26,6 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.16] - 2026-09-15
+
+### Changed
+- Persistence now targets PostgreSQL/pgvector instead of ChromaDB: registry (`document_records`), vector chunks (`chunks` with `Vector(384)` embedding), and pipeline runs (`pipeline_runs`) via the repository layer
+- `run_pipeline` runs in a single DB session: commit on success; on failure the run is rolled back and re-persisted as `FAILED` with `error_message`
+- `resolve_file_lifecycles`/`get_active_registry_records` read the active registry from `document_records` through `DocumentRepository.list_active()`
+- `RetrievalPipeline` searches pgvector via `EmbeddingRepository.search` (cosine distance, optional tenant filter); `persist_dir`/`collection_name` removed from config, evaluation CLI, and `PipelineConfig`
+- Chunk/registry/run writes use `INSERT … ON CONFLICT DO UPDATE` upserts keyed on business IDs (`src/db/repositories/upsert.py`)
+- Removed ChromaDB dependency and all `import chromadb`; deleted `data/chroma/`; `Settings.collection_name`/`persist_dir` removed
+
+### Added
+- `src/db/mappers.py`: domain-model ↔ ORM converters (`document_to_orm`, `document_from_orm`, `chunk_to_orm`)
+- Streamlit app run-history view: "Show Pipeline Runs" button renders recent runs (status badge, duration, new/modified/deleted counts, chunks, error message)
+- `tests/conftest.py`: shared Postgres/pgvector schema fixture and per-test table cleanup; integration/unit tests re-pointed from Chroma temp dirs to `db_session`
 
 ## [0.0.15] - 2026-09-15
 
@@ -174,6 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.16]: https://github.com/mezni/rag-project/releases/tag/v0.0.16
 [0.0.15]: https://github.com/mezni/rag-project/releases/tag/v0.0.15
 [0.0.14]: https://github.com/mezni/rag-project/releases/tag/v0.0.14
 [0.0.13]: https://github.com/mezni/rag-project/releases/tag/v0.0.13
