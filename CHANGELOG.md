@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-09-14
+
+### Added
+- Repository layer (`src/db/repositories/`): `DocumentRepository` (versioned document registry CRUD + lifecycle), `ChunkRepository` (chunk CRUD, doc/version deactivation, active counts), `RunRepository` (pipeline run CRUD + finalization), `EmbeddingRepository` (pgvector store + cosine-distance search)
+- ORM models (`src/db/models.py`): `DocumentRecord`, `Chunk` (with `Vector(384)` embedding), `PipelineRun`, `RunEvent` — registered on `Base.metadata` for Alembic autogenerate
+- `src/db/session.py`: engine, `SessionLocal`, FastAPI `get_db()` dependency, and `session_scope()` context manager
+- `src/db/base.py`: `Base` with named-constraint conventions moved from `models.py`; `TimestampMixin` (`created_at`/`updated_at`)
+- Pydantic app schemas (`src/db/schemas/app/`): `documents.py`, `chunks.py`, `pipeline_runs.py`, `run_events.py` with Create/Read DTOs
+- Dependency: `pgvector`
+
+### Changed
+- `src/db/__init__.py` now re-exports models; `src/db/models.py` is the model registry importing `Base` from `src/db/base.py`
+
 ## [0.0.11] - 2026-09-14
 
 ### Added
@@ -131,6 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.12]: https://github.com/mezni/rag-project/releases/tag/v0.0.12
 [0.0.11]: https://github.com/mezni/rag-project/releases/tag/v0.0.11
 [0.0.10]: https://github.com/mezni/rag-project/releases/tag/v0.0.10
 [0.0.9]: https://github.com/mezni/rag-project/releases/tag/v0.0.9
