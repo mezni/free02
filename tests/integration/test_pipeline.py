@@ -51,6 +51,24 @@ def test_run_pipeline_recreate_wipes_previous_data(tmp_path, db_session):
     assert {row.relative_path for row in rows} == {"b.md"}
 
 
+def test_run_pipeline_recreate_reingests_unchanged_files(tmp_path, db_session):
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "a.md").write_text("hello", encoding="utf-8")
+    config = PipelineConfig(raw_dir=raw)
+
+    run_pipeline(config)
+    run, chunks = run_pipeline(PipelineConfig(raw_dir=raw, recreate=True))
+
+    assert run.status.value == "success"
+    assert run.chunks_created >= 1
+    assert {chunk.doc_id for chunk in chunks} == {"a.md:v1"}
+
+    rows = db_session.query(ChunkORM).all()
+    assert len(rows) == len(chunks)
+    assert {row.relative_path for row in rows} == {"a.md"}
+
+
 def test_store_chunks_upserts(db_session):
     def chunk(text: str, index: int) -> Chunk:
         return Chunk(

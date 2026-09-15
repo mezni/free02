@@ -24,7 +24,7 @@ from src.ingestion.stages.parse import parse_document
 from src.ingestion.stages.persist import (
     deactivate_old_vector_chunks,
     log_pipeline_run,
-    reset_vector_store,
+    reset_store,
     store_chunks,
     update_registry,
 )
@@ -101,7 +101,7 @@ def run_pipeline(
 
     try:
         if config.recreate:
-            reset_vector_store(session)
+            reset_store(session)
 
         new_active, deactivated, unchanged = resolve_file_lifecycles(config, session)
 

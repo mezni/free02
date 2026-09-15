@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.db import mappers
 from src.db.models import Chunk as ChunkORM
+from src.db.models import DocumentRecord as DocumentRecordORM
 from src.db.models import PipelineRun as PipelineRunORM
 from src.db.repositories import (
     ChunkRepository,
@@ -63,9 +64,14 @@ def deactivate_old_vector_chunks(
         )
 
 
-def reset_vector_store(session: Session) -> None:
-    """Delete all chunk rows (recreate semantics: wipe the vector store)."""
+def reset_store(session: Session) -> None:
+    """Recreate semantics: wipe vector chunks and the document registry.
+
+    Both are cleared so lifecycle resolution treats every file on disk as NEW
+    and re-ingests it. Run history (``pipeline_runs``) is preserved for audit.
+    """
     session.execute(delete(ChunkORM))
+    session.execute(delete(DocumentRecordORM))
 
 
 def _run_to_orm(run: PipelineRun) -> PipelineRunORM:
