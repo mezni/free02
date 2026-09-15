@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.12  | DB Repositories   | Repository layer over SQLAlchemy + pgvector for documents, chunks, runs, embeddings |
 | 0.0.11  | DB & Migrations    | PostgreSQL/pgvector via docker-compose; Alembic migration scaffold |
 | 0.0.10  | Stage-Based Ingestion | Ingestion split into discrete stages (discover, parse, clean, chunk, enrich, embed, persist) |
 | 0.0.9   | Domain Entities    | Dedicated domain model layer (document, chunk); design doc added |
