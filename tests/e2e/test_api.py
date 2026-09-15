@@ -30,9 +30,7 @@ def test_ingest_pipeline_is_incremental_and_idempotent(tmp_path, monkeypatch):
     monkeypatch.setattr(
         api,
         "PipelineConfig",
-        lambda: base.model_copy(
-            update={"raw_dir": raw, "persist_dir": tmp_path / "chroma"}
-        ),
+        lambda: base.model_copy(update={"raw_dir": raw}),
     )
 
     first = client.post("/ingest")

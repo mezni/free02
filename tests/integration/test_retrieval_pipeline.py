@@ -1,8 +1,7 @@
-"""Integration tests: retrieval against a real seeded ChromaDB store."""
+"""Integration tests: retrieval against pgvector chunks seeded via the pipeline stage."""
 
-import chromadb
-
-from src.ingestion import ChromaEmbedder, Chunk, store_chunks
+from src.domain.models.chunk import Chunk
+from src.ingestion import ChromaEmbedder, store_chunks
 from src.retrieval import Query, RetrievalPipeline, StubLLM
 
 
@@ -21,22 +20,20 @@ def _chunk(text: str, index: int) -> Chunk:
     )
 
 
-def _seed(persist) -> None:
-    client = chromadb.PersistentClient(path=str(persist))
+def _seed(db_session) -> None:
     chunks = [
         _chunk("The late fee is 15 dollars after the grace period.", 0),
         _chunk("Payment is due 20 days from invoice issuance.", 1),
         _chunk("The service is suspended after 45 days past due.", 2),
     ]
-    store_chunks(chunks, ChromaEmbedder(), client, "documents")
-    client.close()
+    store_chunks(chunks, ChromaEmbedder(), db_session)
+    db_session.commit()
 
 
-def test_answer_returns_retrieved_sources_and_answer(tmp_path):
-    persist = tmp_path / "chroma"
-    _seed(persist)
+def test_answer_returns_retrieved_sources_and_answer(tmp_path, db_session):
+    _seed(db_session)
 
-    pipeline = RetrievalPipeline(llm=StubLLM(), persist_dir=persist)
+    pipeline = RetrievalPipeline(llm=StubLLM())
 
     result = pipeline.answer(Query(text="How much is the late fee?", top_k=2))
 
@@ -46,11 +43,10 @@ def test_answer_returns_retrieved_sources_and_answer(tmp_path):
     pipeline.close()
 
 
-def test_build_prompt_includes_top_matching_chunk(tmp_path):
-    persist = tmp_path / "chroma"
-    _seed(persist)
+def test_build_prompt_includes_top_matching_chunk(tmp_path, db_session):
+    _seed(db_session)
 
-    pipeline = RetrievalPipeline(llm=StubLLM(), persist_dir=persist)
+    pipeline = RetrievalPipeline(llm=StubLLM())
     result = pipeline.search(Query(text="late fee", top_k=1))
 
     assert len(result.chunks) == 1
@@ -58,11 +54,10 @@ def test_build_prompt_includes_top_matching_chunk(tmp_path):
     pipeline.close()
 
 
-def test_search_filters_by_tenant(tmp_path):
-    persist = tmp_path / "chroma"
-    _seed(persist)
+def test_search_filters_by_tenant(tmp_path, db_session):
+    _seed(db_session)
 
-    pipeline = RetrievalPipeline(llm=StubLLM(), persist_dir=persist)
+    pipeline = RetrievalPipeline(llm=StubLLM())
     result = pipeline.search(Query(text="late fee", top_k=5, tenant_id="acme"))
 
     assert len(result.chunks) > 0

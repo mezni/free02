@@ -1,13 +1,14 @@
-"""Retrieval: embed query → vector search → context assembly → LLM generation."""
+"""Retrieval: embed query → pgvector search → context assembly → LLM generation."""
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 
-import chromadb
 import httpx
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from src.config import settings
+from src.db.repositories import EmbeddingRepository
+from src.db.session import SessionLocal
 from src.ingestion import ChromaEmbedder, Embedder
 
 SYSTEM_PROMPT = (
@@ -103,21 +104,21 @@ class RetrievalPipeline:
         self,
         embedder: Embedder | None = None,
         llm: LLM | None = None,
-        persist_dir: Path = settings.persist_dir,
-        collection_name: str = settings.collection_name,
+        db_session: Session | None = None,
     ) -> None:
         self._embedder = embedder or ChromaEmbedder()
         self._llm = llm or (
             OpenAICompatibleLLM() if settings.llm_api_key else StubLLM()
         )
         self.model = getattr(self._llm, "model", "stub")
-        self._client = chromadb.PersistentClient(path=str(persist_dir))
-        self._collection = self._client.get_collection(name=collection_name)
+        self._owns_session = db_session is None
+        self._session = db_session or SessionLocal()
 
     def close(self) -> None:
         if isinstance(self._llm, OpenAICompatibleLLM):
             self._llm.close()
-        self._client.close()
+        if self._owns_session:
+            self._session.close()
 
     def embed_query(self, query: Query) -> list[float]:
         """Step 1: normalize and embed the query."""
@@ -125,40 +126,21 @@ class RetrievalPipeline:
         return embedded[0]
 
     def search(self, query: Query) -> RetrievalResult:
-        """Step 2: nearest-neighbour search against the vector index."""
-        results = self._collection.query(
-            query_embeddings=[self.embed_query(query)],
-            n_results=query.top_k,
-            where=self._where(query),
-            include=["documents", "metadatas", "distances"],
+        """Step 2: nearest-neighbour search against the pgvector index."""
+        query_vector = self.embed_query(query)
+        rows = EmbeddingRepository(self._session).search(
+            query_vector, top_k=query.top_k, tenant_id=query.tenant_id
         )
-        chunks = []
-        for document, metadata, distance in zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0],
-        ):
-            index = metadata.get("chunk_index")
-            if index is None:
-                index = metadata.get("index", 0)
-            chunks.append(
-                RetrievedChunk(
-                    text=document,
-                    source=metadata.get("relative_path") or metadata.get("source", ""),
-                    index=index,
-                    distance=distance,
-                )
+        chunks = [
+            RetrievedChunk(
+                text=chunk.content,
+                source=chunk.relative_path,
+                index=chunk.chunk_index,
+                distance=score,
             )
+            for chunk, score in rows
+        ]
         return RetrievalResult(query=query.text, chunks=chunks)
-
-    def _where(self, query: Query) -> dict:
-        """Step 2a: build a metadata filter, honouring multitenancy."""
-        conditions: list[dict] = [{"is_active": True}]
-        if query.tenant_id:
-            conditions.append({"tenant_id": query.tenant_id})
-        if len(conditions) == 1:
-            return conditions[0]
-        return {"$and": conditions}
 
     def build_context(self, result: RetrievalResult) -> str:
         """Step 3a: assemble retrieved chunks into labelled context blocks."""

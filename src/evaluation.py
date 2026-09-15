@@ -235,15 +235,11 @@ def main() -> None:
     parser.add_argument(
         "--cases", type=Path, required=True, help="JSONL file of EvalCase objects"
     )
-    parser.add_argument("--persist-dir", type=Path, default=settings.persist_dir)
-    parser.add_argument("--collection-name", type=str, default=settings.collection_name)
     parser.add_argument("--top-k", type=int, default=5, choices=range(1, 21))
     args = parser.parse_args()
 
     cases = load_cases(args.cases)
-    pipeline = RetrievalPipeline(
-        persist_dir=args.persist_dir, collection_name=args.collection_name
-    )
+    pipeline = RetrievalPipeline()
     try:
         evaluation = evaluate_retrieval(pipeline, cases, top_k=args.top_k)
         print(f"Evaluated {len(evaluation.cases)} case(s) at top-{args.top_k}")

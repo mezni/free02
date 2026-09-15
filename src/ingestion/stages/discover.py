@@ -7,9 +7,11 @@ import mimetypes
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import chromadb
+from sqlalchemy.orm import Session
 
 from src.config import settings
+from src.db.models import DocumentRecord as DocumentRecordORM
+from src.db.repositories import DocumentRepository
 from src.domain.models.document import (
     DiscoveredDocument,
     DocumentRecord,
@@ -51,18 +53,39 @@ def scan_documents(raw_dir: Path = settings.raw_dir) -> list[Path]:
     )
 
 
-def get_active_registry_records(
-    client: chromadb.Client, collection_name: str
-) -> dict[str, dict]:
-    registry = client.get_or_create_collection(name=collection_name)
-    results = registry.get(where={"is_active": True})
+def _record_meta_from_orm(rec: DocumentRecordORM) -> dict:
+    return {
+        "doc_id": rec.doc_id,
+        "version": rec.version,
+        "version_tag": rec.version_tag,
+        "is_active": rec.is_active,
+        "state": rec.state,
+        "created_at": rec.created_at.isoformat() if rec.created_at else "",
+        "tenant_id": rec.tenant_id,
+        "access_roles": ",".join(rec.access_roles or []),
+        "classification": rec.classification,
+        "department": rec.department,
+        "category": rec.category,
+        "relative_path": rec.relative_path,
+        "file_name": rec.file_name,
+        "parent_directory": rec.parent_directory,
+        "file_extension": rec.file_extension,
+        "mime_type": rec.mime_type,
+        "file_hash": rec.file_hash,
+        "checksum_algorithm": rec.checksum_algorithm,
+        "size_bytes": rec.size_bytes,
+        "modified_at": rec.modified_at,
+        "source": rec.source,
+    }
 
-    active_map = {}
-    if results and results["metadatas"]:
-        for metadata in results["metadatas"]:
-            rel_path = metadata["relative_path"]
-            active_map[rel_path] = metadata
-    return active_map
+
+def get_active_registry_records(session: Session) -> dict[str, dict]:
+    """Return active document-registry metadata keyed by relative path."""
+    repository = DocumentRepository(session)
+    return {
+        rec.relative_path: _record_meta_from_orm(rec)
+        for rec in repository.list_active()
+    }
 
 
 # --- Life Cycle & Document Resolution ---
@@ -172,12 +195,10 @@ def _record_from_meta(
 
 def resolve_file_lifecycles(
     config: PipelineConfig,
-    client: chromadb.Client,
+    session: Session,
 ) -> tuple[list[DocumentRecord], list[DocumentRecord], list[DocumentRecord]]:
     """Resolve disk files into (new_active, to_deactivate, unchanged) records."""
-    active_records = get_active_registry_records(
-        client, config.registry_collection_name
-    )
+    active_records = get_active_registry_records(session)
     disk_files = _scan_disk(config.raw_dir)
 
     new_active_records: list[DocumentRecord] = []

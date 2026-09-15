@@ -4,6 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.db.models import Chunk
+from src.db.repositories.upsert import upsert
 
 
 class EmbeddingRepository:
@@ -19,6 +20,10 @@ class EmbeddingRepository:
     def store_many(self, chunks: list[Chunk]) -> list[Chunk]:
         self._session.add_all(chunks)
         return chunks
+
+    def upsert(self, chunk: Chunk) -> Chunk:
+        upsert(self._session, Chunk, chunk, "chunk_id")
+        return chunk
 
     def search(
         self,

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.models import PipelineRun
+from src.db.repositories.upsert import upsert
 
 
 class RunRepository:
@@ -16,6 +17,10 @@ class RunRepository:
 
     def add(self, run: PipelineRun) -> PipelineRun:
         self._session.add(run)
+        return run
+
+    def upsert(self, run: PipelineRun) -> PipelineRun:
+        upsert(self._session, PipelineRun, run, "run_id")
         return run
 
     def get(self, run_id: str) -> PipelineRun | None:

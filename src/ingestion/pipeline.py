@@ -8,11 +8,11 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
-import chromadb
 from pydantic import BaseModel, Field
 
 from src.config import settings
 from src.core.logging import setup_logging
+from src.db.session import SessionLocal
 from src.domain.models.chunk import Chunk
 from src.domain.models.document import DocumentRecord, FileState, SourceType
 from src.ingestion.stages.chunk import build_chunks, chunking_strategy_for
@@ -24,6 +24,7 @@ from src.ingestion.stages.parse import parse_document
 from src.ingestion.stages.persist import (
     deactivate_old_vector_chunks,
     log_pipeline_run,
+    reset_vector_store,
     store_chunks,
     update_registry,
 )
@@ -42,10 +43,6 @@ class RunStatus(str, Enum):
 
 class PipelineConfig(BaseModel):
     raw_dir: Path = Field(default=settings.raw_dir)
-    persist_dir: Path = Field(default=settings.persist_dir)
-    collection_name: str = Field(default=settings.collection_name)
-    registry_collection_name: str = Field(default="documents_registry")
-    runs_collection_name: str = Field(default="pipeline_runs")
     chunk_size: int = Field(default=settings.chunk_size, gt=0)
     overlap: int = Field(default=settings.overlap, ge=0)
     source: SourceType = Field(default=SourceType.FILESYSTEM)
@@ -100,47 +97,52 @@ def run_pipeline(
     run = PipelineRun(source=config.source)
     start_time = time.perf_counter()
     chunks: list[Chunk] = []
-
-    client = chromadb.PersistentClient(path=str(config.persist_dir))
-    if config.recreate:
-        for existing in client.list_collections():
-            if existing.name == config.collection_name:
-                client.delete_collection(name=config.collection_name)
-                break
+    session = SessionLocal()
 
     try:
-        new_active, deactivated, unchanged = resolve_file_lifecycles(config, client)
+        if config.recreate:
+            reset_vector_store(session)
+
+        new_active, deactivated, unchanged = resolve_file_lifecycles(config, session)
 
         run.files_new = sum(1 for r in new_active if r.state == FileState.NEW)
         run.files_modified = sum(1 for r in new_active if r.state == FileState.MODIFIED)
         run.files_deleted = sum(1 for r in deactivated if r.state == FileState.DELETED)
         run.files_unchanged = len(unchanged)
 
-        registry = client.get_or_create_collection(name=config.registry_collection_name)
-        update_registry(registry, [*new_active, *deactivated])
+        update_registry(session, [*new_active, *deactivated])
 
-        deactivate_old_vector_chunks(client, config.collection_name, deactivated)
+        deactivate_old_vector_chunks(session, deactivated)
 
         for doc_rec in new_active:
             chunks.extend(load_and_chunk(doc_rec, config, run.run_id))
 
         run.chunks_created = len(chunks)
-        store_chunks(
-            chunks, embedder or ChromaEmbedder(), client, config.collection_name
-        )
+        store_chunks(chunks, embedder or ChromaEmbedder(), session)
+
         run.status = RunStatus.SUCCESS
+        run.completed_at = datetime.now(UTC)
+        run.duration_seconds = round(time.perf_counter() - start_time, 3)
+        log_pipeline_run(session, run)
+        session.commit()
 
     except Exception as exc:
+        session.rollback()
         run.status = RunStatus.FAILED
         run.error_message = str(exc)
+        run.chunks_created = len(chunks)
+        run.completed_at = datetime.now(UTC)
+        run.duration_seconds = round(time.perf_counter() - start_time, 3)
         logger.exception("Pipeline failed")
+        try:
+            log_pipeline_run(session, run)
+            session.commit()
+        except Exception:  # noqa: BLE001 - best-effort persistence of the failed run
+            session.rollback()
         raise
 
     finally:
-        run.completed_at = datetime.now(UTC)
-        run.duration_seconds = round(time.perf_counter() - start_time, 3)
-        log_pipeline_run(client, run, config.runs_collection_name)
-        client.close()
+        session.close()
 
     return run, chunks
 
@@ -151,8 +153,6 @@ def main() -> None:
     )
     parser.add_argument("--source", type=SourceType, default=SourceType.FILESYSTEM)
     parser.add_argument("--raw-dir", type=Path, default=settings.raw_dir)
-    parser.add_argument("--persist-dir", type=Path, default=settings.persist_dir)
-    parser.add_argument("--collection-name", type=str, default=settings.collection_name)
     parser.add_argument("--chunk-size", type=int, default=settings.chunk_size)
     parser.add_argument("--overlap", type=int, default=settings.overlap)
     parser.add_argument("--recreate", action="store_true")
@@ -164,8 +164,6 @@ def main() -> None:
     config = PipelineConfig(
         source=args.source,
         raw_dir=args.raw_dir,
-        persist_dir=args.persist_dir,
-        collection_name=args.collection_name,
         chunk_size=args.chunk_size,
         overlap=args.overlap,
         recreate=args.recreate,

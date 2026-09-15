@@ -3,9 +3,11 @@
 import hashlib
 from pathlib import Path
 
-import chromadb
 import pytest
 
+from src.db.models import Chunk as ChunkORM
+from src.db.models import DocumentRecord as DocumentRecordORM
+from src.db.models import PipelineRun as PipelineRunORM
 from src.domain.models.chunk import Chunk
 from src.ingestion import (
     ChromaEmbedder,
@@ -38,8 +40,7 @@ class _IdentityEmbedder:
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return [
-            [float(offset + index) for index in range(8)]
-            for offset in range(len(texts))
+            [float(offset)] * 384 for offset in range(len(texts))
         ]
 
 
@@ -186,32 +187,43 @@ def test_detect_mime_type_covers_markdown_text_and_unknown(tmp_path):
     assert detect_mime_type(unknown) == "text/plain"
 
 
-def test_get_active_registry_records_filters_inactive(tmp_path):
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
-    collection = client.get_or_create_collection(name="documents_registry")
-    collection.upsert(
-        ids=["doc.md:v1", "other.md:v1"],
-        documents=["a", "b"],
-        metadatas=[
-            {"relative_path": "doc.md", "is_active": True},
-            {"relative_path": "other.md", "is_active": False},
-        ],
+def test_get_active_registry_records_filters_inactive(db_session):
+    active = _record("doc.md")
+    inactive = DocumentRecord(
+        doc_id="other.md:v1",
+        version=1,
+        version_tag="v1",
+        is_active=False,
+        state=FileState.DELETED,
+        discovered_doc=DiscoveredDocument(
+            relative_path="other.md",
+            file_name="other.md",
+            parent_directory=".",
+            file_extension=".md",
+            mime_type="text/markdown",
+            file_hash="hash",
+            size_bytes=1,
+            modified_at=1.0,
+            source=SourceType.FILESYSTEM,
+        ),
     )
 
-    active = get_active_registry_records(client, "documents_registry")
+    update_registry(db_session, [active, inactive])
+    db_session.commit()
 
-    assert set(active) == {"doc.md"}
+    active_map = get_active_registry_records(db_session)
+
+    assert set(active_map) == {"doc.md"}
 
 
-def test_resolve_lifecycles_marks_new_files(tmp_path):
+def test_resolve_lifecycles_marks_new_files(tmp_path, db_session):
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "a.md").write_text("alpha", encoding="utf-8")
     (raw / "b.md").write_text("beta", encoding="utf-8")
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
 
     new_active, deactivated, unchanged = resolve_file_lifecycles(
-        PipelineConfig(raw_dir=raw, persist_dir=tmp_path / "chroma"), client
+        PipelineConfig(raw_dir=raw), db_session
     )
 
     assert {rec.state for rec in new_active} == {FileState.NEW}
@@ -220,17 +232,14 @@ def test_resolve_lifecycles_marks_new_files(tmp_path):
     assert unchanged == []
 
 
-def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
+def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path, db_session):
     raw = tmp_path / "raw"
     raw.mkdir()
-    persist = tmp_path / "chroma"
-    client = chromadb.PersistentClient(path=str(persist))
 
     (raw / "doc.md").write_text("alpha", encoding="utf-8")
     (raw / "stable.md").write_text("stable", encoding="utf-8")
     (raw / "gone.md").write_text("gone", encoding="utf-8")
 
-    registry = client.get_or_create_collection(name="documents_registry")
     seed_records = [
         DocumentRecord(
             doc_id=f"{name}:v1",
@@ -251,13 +260,14 @@ def test_resolve_lifecycles_detects_modification_and_deletion(tmp_path):
         )
         for name in ("doc.md", "stable.md", "gone.md")
     ]
-    update_registry(registry, seed_records)
+    update_registry(db_session, seed_records)
+    db_session.commit()
 
     (raw / "doc.md").write_text("alpha changed", encoding="utf-8")
     (raw / "gone.md").unlink()
 
     new_active, deactivated, unchanged = resolve_file_lifecycles(
-        PipelineConfig(raw_dir=raw, persist_dir=persist), client
+        PipelineConfig(raw_dir=raw), db_session
     )
 
     assert {rec.doc_id for rec in new_active} == {"doc.md:v2"}
@@ -287,62 +297,55 @@ def test_chroma_embedder_returns_embeddings():
 # --- Persist stage ---
 
 
-def test_update_registry_upserts_records(tmp_path):
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
-    collection = client.get_or_create_collection(name="documents_registry")
+def test_update_registry_upserts_records(db_session):
+    update_registry(db_session, [_record("doc.md")])
+    db_session.commit()
 
-    update_registry(collection, [_record("doc.md")])
+    row = db_session.get(DocumentRecordORM, "doc.md:v1")
+    assert row is not None
+    assert row.relative_path == "doc.md"
+    assert row.is_active is True
 
-    result = collection.get(ids=["doc.md:v1"])
-    assert result["metadatas"][0]["relative_path"] == "doc.md"
-    assert result["metadatas"][0]["is_active"] is True
 
-
-def test_store_chunks_embeds_and_persists(tmp_path):
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
-
+def test_store_chunks_embeds_and_persists(db_session):
     count = store_chunks(
         [_chunk("alpha", 0), _chunk("beta", 1)],
         _IdentityEmbedder(),
-        client,
-        "documents",
+        db_session,
     )
+    db_session.commit()
 
     assert count == 2
-    collection = client.get_or_create_collection(name="documents")
-    assert collection.count() == 2
-    assert {
-        meta["relative_path"]
-        for meta in collection.get(include=["metadatas"])["metadatas"]
-    } == {"doc.md"}
+    rows = db_session.query(ChunkORM).all()
+    assert len(rows) == 2
+    assert {row.relative_path for row in rows} == {"doc.md"}
+    assert all(row.embedding is not None for row in rows)
 
 
-def test_deactivate_old_vector_chunks_flips_active_flag(tmp_path):
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
+def test_deactivate_old_vector_chunks_flips_active_flag(db_session):
     store_chunks(
         [_chunk("alpha", 0), _chunk("beta", 1)],
         _IdentityEmbedder(),
-        client,
-        "documents",
+        db_session,
     )
+    db_session.commit()
 
-    deactivate_old_vector_chunks(client, "documents", [_record("doc.md")])
+    deactivate_old_vector_chunks(db_session, [_record("doc.md")])
 
-    collection = client.get_or_create_collection(name="documents")
-    metadatas = collection.get(include=["metadatas"])["metadatas"]
-    assert metadatas
-    assert all(meta["is_active"] is False for meta in metadatas)
+    rows = db_session.query(ChunkORM).all()
+    assert rows
+    assert all(row.is_active is False for row in rows)
 
 
-def test_log_pipeline_run_records_run_metadata(tmp_path):
-    client = chromadb.PersistentClient(path=str(tmp_path / "chroma"))
+def test_log_pipeline_run_records_run_metadata(db_session):
     run = PipelineRun(source=SourceType.FILESYSTEM, status=RunStatus.SUCCESS)
     run.files_new = 1
     run.chunks_created = 2
 
-    log_pipeline_run(client, run, "pipeline_runs")
+    log_pipeline_run(db_session, run)
+    db_session.commit()
 
-    collection = client.get_or_create_collection(name="pipeline_runs")
-    result = collection.get(ids=[run.run_id])
-    assert result["metadatas"][0]["status"] == "success"
-    assert result["metadatas"][0]["chunks_created"] == 2
+    row = db_session.get(PipelineRunORM, run.run_id)
+    assert row is not None
+    assert row.status == "success"
+    assert row.chunks_created == 2

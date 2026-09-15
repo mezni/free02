@@ -1,65 +1,57 @@
-"""Integration tests: end-to-end pipeline into a real ChromaDB store."""
+"""Integration tests: end-to-end pipeline into a real Postgres/pgvector store."""
 
-import chromadb
-
+from src.db.models import Chunk as ChunkORM
+from src.db.models import PipelineRun as PipelineRunORM
+from src.domain.models.chunk import Chunk
 from src.ingestion import (
     ChromaEmbedder,
-    Chunk,
     PipelineConfig,
     run_pipeline,
     store_chunks,
 )
 
 
-def test_run_pipeline_ingests_markdown(tmp_path):
+def test_run_pipeline_ingests_markdown(tmp_path, db_session):
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "doc.md").write_text(
         "\n\n".join(f"# Section {i}\n{'word ' * 50}" for i in range(4)),
         encoding="utf-8",
     )
-    persist = tmp_path / "chroma"
-    config = PipelineConfig(raw_dir=raw, persist_dir=persist)
+    config = PipelineConfig(raw_dir=raw)
 
     run, chunks = run_pipeline(config)
 
     assert len(chunks) > 1
-    assert persist.exists()
     assert run.chunks_created == len(chunks)
 
-    collection = _collection(persist)
-    assert collection.count() == len(chunks)
-    sources = {
-        meta["relative_path"]
-        for meta in collection.get(include=["metadatas"])["metadatas"]
-    }
-    assert sources == {"doc.md"}
+    rows = db_session.query(ChunkORM).all()
+    assert len(rows) == len(chunks)
+    assert {row.relative_path for row in rows} == {"doc.md"}
+
+    run_row = db_session.get(PipelineRunORM, run.run_id)
+    assert run_row is not None
+    assert run_row.status == "success"
+    assert run_row.chunks_created == len(chunks)
 
 
-def test_run_pipeline_recreate_wipes_previous_data(tmp_path):
+def test_run_pipeline_recreate_wipes_previous_data(tmp_path, db_session):
     raw = tmp_path / "raw"
     raw.mkdir()
-    persist = tmp_path / "chroma"
-    config = PipelineConfig(raw_dir=raw, persist_dir=persist)
+    config = PipelineConfig(raw_dir=raw)
 
     (raw / "a.md").write_text("hello", encoding="utf-8")
     run_pipeline(config)
     (raw / "a.md").unlink()
     (raw / "b.md").write_text("world", encoding="utf-8")
-    run_pipeline(PipelineConfig(raw_dir=raw, persist_dir=persist, recreate=True))
+    run_pipeline(PipelineConfig(raw_dir=raw, recreate=True))
 
-    collection = _collection(persist)
-    assert collection.count() == 1
-    assert {
-        meta["relative_path"]
-        for meta in collection.get(include=["metadatas"])["metadatas"]
-    } == {"b.md"}
+    rows = db_session.query(ChunkORM).all()
+    assert len(rows) == 1
+    assert {row.relative_path for row in rows} == {"b.md"}
 
 
-def test_chromadb_store_chunks_upserts(tmp_path):
-    persist = tmp_path / "chroma"
-    client = chromadb.PersistentClient(path=str(persist))
-
+def test_store_chunks_upserts(db_session):
     def chunk(text: str, index: int) -> Chunk:
         return Chunk(
             content=text,
@@ -68,6 +60,7 @@ def test_chromadb_store_chunks_upserts(tmp_path):
             index=index,
             doc_metadata={
                 "relative_path": "doc.md",
+                "version": 1,
                 "version_tag": "v1",
                 "is_active": True,
             },
@@ -77,13 +70,9 @@ def test_chromadb_store_chunks_upserts(tmp_path):
     second = [chunk("beta", 0), chunk("gamma", 1)]
 
     embedder = ChromaEmbedder()
-    store_chunks(first, embedder, client, "documents")
-    store_chunks(second, embedder, client, "documents")
+    store_chunks(first, embedder, db_session)
+    db_session.commit()
+    store_chunks(second, embedder, db_session)
+    db_session.commit()
 
-    collection = client.get_or_create_collection(name="documents")
-    assert collection.count() == 2
-
-
-def _collection(persist):
-    client = chromadb.PersistentClient(path=str(persist))
-    return client.get_or_create_collection(name="documents")
+    assert db_session.query(ChunkORM).count() == 2

@@ -18,8 +18,6 @@ class Settings(BaseSettings):
     log_level: str = "DEBUG"
 
     raw_dir: Path = ROOT_DIR / "data" / "raw"
-    persist_dir: Path = ROOT_DIR / "data" / "chroma"
-    collection_name: str = "documents"
     chunk_size: int = 800
     overlap: int = 100
 
