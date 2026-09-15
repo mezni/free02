@@ -56,112 +56,113 @@ class PipelineConfig(BaseModel):
     recreate: bool = Field(default=False)
 
 
-# --- Document Class with Metadata Dictionary & Multitenancy ---
+# --- Document Discovery & Vector Data Models ---
+
+
+class DiscoveredDocument(BaseModel):
+    """Raw document metadata extracted during initial discovery or source ingestion."""
+
+    relative_path: str
+    file_name: str
+    parent_directory: str
+    file_extension: str
+    mime_type: str
+    file_hash: str
+    size_bytes: int
+    modified_at: float
+    source: SourceType = SourceType.FILESYSTEM
+    checksum_algorithm: str = "md5"
 
 
 class DocumentRecord(BaseModel):
-    """Document class containing standard fields, multitenancy/RBAC parameters, and metadata dict."""
+    """Vector document model containing explicit metadata attributes and a unified dict."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     doc_id: str
-    file_name: str
-    relative_path: str
-    parent_directory: str
-    file_extension: str
-    mime_type: str
-    source: SourceType
     version: int = 1
     version_tag: str = "v1"
-    file_hash: str
-    checksum_algorithm: str = "md5"
     is_active: bool = True
     state: FileState
-    size_bytes: int
-    modified_at: float
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    # Multi-tenancy, RBAC, and Descriptive Fields
-    tenant_id: str = Field(
-        default="default_tenant", description="Customer/Tenant boundary identifier"
-    )
-    access_roles: list[str] = Field(
-        default_factory=lambda: ["public"],
-        description="RBAC permitted roles, e.g. ['billing_admin', 'support_tier_2']",
-    )
-    classification: str = Field(
-        default="internal", description="public | internal | confidential | restricted"
-    )
-    department: str = Field(
-        default="", description="Organizational department (e.g., billing, engineering)"
-    )
-    category: str = Field(default="", description="Directory or logical grouping")
-    doc_type: str = Field(
-        default="document",
-        description="Document archetype (e.g., policy, invoice, manual)",
-    )
-    language: str = Field(default="en", description="Primary ISO language code")
-    title: str | None = Field(default=None, description="Original document title")
-    author: str | None = Field(default=None, description="Creator or accountable party")
-    document_summary: str | None = Field(
-        default=None, description="LLM-generated document summary"
-    )
-    total_pages: int | None = Field(
-        default=None, ge=1, description="Total page count for paginated files"
-    )
+    # Explicit Multitenancy & RBAC attributes
+    tenant_id: str = Field(default="default_tenant")
+    access_roles: list[str] = Field(default_factory=lambda: ["public"])
+    classification: str = Field(default="internal")
+    department: str = Field(default="")
+    category: str = Field(default="")
 
-    # Store arbitrary metadata key-values directly on the document object
+    # Raw source metadata reference
+    discovered_doc: DiscoveredDocument
+
+    # Universal metadata dictionary for arbitrary extra fields or vector payload export
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def model_post_init(self, __context: Any, /) -> None:
-        """Populate the metadata dictionary with core attributes if not explicitly passed."""
-        if not self.metadata:
-            self.metadata = self.to_dict()
+        """Sync top-level attributes into metadata dict and normalize for ChromaDB."""
+        base_meta = self._build_default_metadata()
+        # System metadata always reflects the record's own fields; custom extra
+        # metadata keys extend the dict without overriding system fields.
+        self.metadata = {**self.metadata, **base_meta}
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return a flat dictionary of document metadata suitable for vector stores like ChromaDB."""
+    def _build_default_metadata(self) -> dict[str, Any]:
+        """Build ChromaDB-compatible metadata (ensuring scalar values only)."""
+        doc = self.discovered_doc
+
+        # Flatten list fields (e.g., access_roles) into comma-separated strings for ChromaDB
+        roles_str = (
+            ",".join(self.access_roles)
+            if isinstance(self.access_roles, list)
+            else str(self.access_roles)
+        )
+
         return {
             "doc_id": self.doc_id,
-            "file_name": self.file_name,
-            "relative_path": self.relative_path,
-            "parent_directory": self.parent_directory,
-            "file_extension": self.file_extension,
-            "mime_type": self.mime_type,
-            "source": self.source.value
-            if isinstance(self.source, Enum)
-            else str(self.source),
             "version": self.version,
             "version_tag": self.version_tag,
-            "file_hash": self.file_hash,
-            "checksum_algorithm": self.checksum_algorithm,
             "is_active": self.is_active,
             "state": self.state.value
             if isinstance(self.state, Enum)
             else str(self.state),
-            "size_bytes": self.size_bytes,
-            "modified_at": self.modified_at,
             "created_at": self.created_at,
+            # Explicit domain & governance attributes
             "tenant_id": self.tenant_id,
-            "access_roles": ",".join(
-                self.access_roles
-            ),  # Chroma DB requires scalar values
+            "access_roles": roles_str,
             "classification": self.classification,
             "department": self.department,
             "category": self.category,
-            "doc_type": self.doc_type,
-            "language": self.language,
-            "title": self.title or "",
-            "author": self.author or "",
-            "document_summary": self.document_summary or "",
-            "total_pages": self.total_pages or 0,
-            **self.metadata,  # Includes custom metadata key-values
+            # File system discovery properties
+            "relative_path": doc.relative_path,
+            "file_name": doc.file_name,
+            "parent_directory": doc.parent_directory,
+            "file_extension": doc.file_extension,
+            "mime_type": doc.mime_type,
+            "file_hash": doc.file_hash,
+            "checksum_algorithm": doc.checksum_algorithm,
+            "size_bytes": doc.size_bytes,
+            "modified_at": doc.modified_at,
+            "source": doc.source.value
+            if isinstance(doc.source, Enum)
+            else str(doc.source),
+            # Default descriptive field fallbacks
+            "doc_type": self.metadata.get("doc_type", "document"),
+            "language": self.metadata.get("language", "en"),
+            "title": self.metadata.get("title", ""),
+            "author": self.metadata.get("author", ""),
+            "document_summary": self.metadata.get("document_summary", ""),
+            "total_pages": self.metadata.get("total_pages", 0),
         }
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the flattened metadata dictionary suitable for ChromaDB vector storage."""
+        return self.metadata
 
 
 class Chunk(BaseModel):
-    """Chunk model containing reference metadata dictionary inherited from the parent document."""
+    """Chunk model containing content text and injected document metadata dictionary."""
 
-    text: str
+    content: str
     run_id: str
     doc_id: str
     index: int
@@ -289,29 +290,28 @@ def resolve_file_lifecycles(
         mime_type = detect_mime_type(file_path)
         parent_dir = str(file_path.relative_to(config.raw_dir).parent)
 
+        discovered = DiscoveredDocument(
+            relative_path=rel_path,
+            file_name=file_path.name,
+            parent_directory=parent_dir,
+            file_extension=file_path.suffix.lower(),
+            mime_type=mime_type,
+            file_hash=current_hash,
+            size_bytes=stat.st_size,
+            modified_at=stat.st_mtime,
+            source=config.source,
+        )
+
         if rel_path not in active_records:
             record = DocumentRecord(
                 doc_id=f"{rel_path}:v1",
-                file_name=file_path.name,
-                relative_path=rel_path,
-                parent_directory=parent_dir,
-                file_extension=file_path.suffix.lower(),
-                mime_type=mime_type,
-                source=config.source,
-                version=1,
-                version_tag="v1",
-                file_hash=current_hash,
-                is_active=True,
                 state=FileState.NEW,
-                size_bytes=stat.st_size,
-                modified_at=stat.st_mtime,
+                discovered_doc=discovered,
                 tenant_id="tenant_acme_corp",
                 access_roles=["internal_user", "engineering"],
                 classification="internal",
                 department="engineering",
                 category="documentation",
-                doc_type="technical_spec",
-                language="en",
             )
             new_active_records.append(record)
 
@@ -321,64 +321,84 @@ def resolve_file_lifecycles(
                 new_version = prev_meta["version"] + 1
                 v_tag = f"v{new_version}"
 
-                old_record = DocumentRecord(
-                    doc_id=prev_meta["doc_id"],
-                    file_name=prev_meta["file_name"],
+                prev_discovered = DiscoveredDocument(
                     relative_path=prev_meta["relative_path"],
+                    file_name=prev_meta["file_name"],
                     parent_directory=prev_meta.get("parent_directory", "."),
                     file_extension=prev_meta.get("file_extension", ""),
                     mime_type=prev_meta.get("mime_type", "text/plain"),
+                    file_hash=prev_meta["file_hash"],
+                    size_bytes=prev_meta["size_bytes"],
+                    modified_at=prev_meta["modified_at"],
                     source=SourceType(prev_meta["source"]),
+                )
+
+                roles = prev_meta.get("access_roles", "public")
+                roles_list = roles.split(",") if isinstance(roles, str) else roles
+
+                old_record = DocumentRecord(
+                    doc_id=prev_meta["doc_id"],
                     version=prev_meta["version"],
                     version_tag=prev_meta.get(
                         "version_tag", f"v{prev_meta['version']}"
                     ),
-                    file_hash=prev_meta["file_hash"],
                     is_active=False,
                     state=FileState.MODIFIED,
-                    size_bytes=prev_meta["size_bytes"],
-                    modified_at=prev_meta["modified_at"],
+                    discovered_doc=prev_discovered,
                     tenant_id=prev_meta.get("tenant_id", "default_tenant"),
+                    access_roles=roles_list,
+                    classification=prev_meta.get("classification", "internal"),
+                    department=prev_meta.get("department", ""),
+                    category=prev_meta.get("category", ""),
+                    metadata=prev_meta,
                 )
                 records_to_deactivate.append(old_record)
 
                 new_record = DocumentRecord(
                     doc_id=f"{rel_path}:{v_tag}",
-                    file_name=file_path.name,
-                    relative_path=rel_path,
-                    parent_directory=parent_dir,
-                    file_extension=file_path.suffix.lower(),
-                    mime_type=mime_type,
-                    source=config.source,
                     version=new_version,
                     version_tag=v_tag,
-                    file_hash=current_hash,
-                    is_active=True,
                     state=FileState.MODIFIED,
-                    size_bytes=stat.st_size,
-                    modified_at=stat.st_mtime,
+                    discovered_doc=discovered,
                     tenant_id=prev_meta.get("tenant_id", "default_tenant"),
+                    access_roles=roles_list,
+                    classification=prev_meta.get("classification", "internal"),
+                    department=prev_meta.get("department", ""),
+                    category=prev_meta.get("category", ""),
+                    metadata=prev_meta,
                 )
                 new_active_records.append(new_record)
 
     for rel_path, prev_meta in active_records.items():
         if rel_path not in disk_files:
-            deleted_record = DocumentRecord(
-                doc_id=prev_meta["doc_id"],
-                file_name=prev_meta["file_name"],
+            deleted_discovered = DiscoveredDocument(
                 relative_path=prev_meta["relative_path"],
+                file_name=prev_meta["file_name"],
                 parent_directory=prev_meta.get("parent_directory", "."),
                 file_extension=prev_meta.get("file_extension", ""),
                 mime_type=prev_meta.get("mime_type", "text/plain"),
-                source=SourceType(prev_meta["source"]),
-                version=prev_meta["version"],
-                version_tag=prev_meta.get("version_tag", f"v{prev_meta['version']}"),
                 file_hash=prev_meta["file_hash"],
-                is_active=False,
-                state=FileState.DELETED,
                 size_bytes=prev_meta["size_bytes"],
                 modified_at=prev_meta["modified_at"],
+                source=SourceType(prev_meta["source"]),
+            )
+
+            roles = prev_meta.get("access_roles", "public")
+            roles_list = roles.split(",") if isinstance(roles, str) else roles
+
+            deleted_record = DocumentRecord(
+                doc_id=prev_meta["doc_id"],
+                version=prev_meta["version"],
+                version_tag=prev_meta.get("version_tag", f"v{prev_meta['version']}"),
+                is_active=False,
+                state=FileState.DELETED,
+                discovered_doc=deleted_discovered,
                 tenant_id=prev_meta.get("tenant_id", "default_tenant"),
+                access_roles=roles_list,
+                classification=prev_meta.get("classification", "internal"),
+                department=prev_meta.get("department", ""),
+                category=prev_meta.get("category", ""),
+                metadata=prev_meta,
             )
             records_to_deactivate.append(deleted_record)
 
@@ -394,7 +414,7 @@ def update_registry(
 
     ids = [rec.doc_id for rec in records]
     docs = [
-        f"Metadata record for {rec.relative_path} ({rec.version_tag})"
+        f"Metadata record for {rec.discovered_doc.relative_path} ({rec.version_tag})"
         for rec in records
     ]
     metadatas = [rec.to_dict() for rec in records]
@@ -426,17 +446,20 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
 def load_and_chunk(
     doc_rec: DocumentRecord, config: PipelineConfig, run_id: str
 ) -> list[Chunk]:
-    file_path = config.raw_dir / doc_rec.relative_path
+    file_path = config.raw_dir / doc_rec.discovered_doc.relative_path
     text = file_path.read_text(encoding="utf-8")
     raw_chunks = chunk_text(text, config.chunk_size, config.overlap)
 
+    # Extract complete document metadata dictionary for chunk-level injection
+    injected_metadata = doc_rec.to_dict()
+
     return [
         Chunk(
-            text=part,
+            content=part,
             run_id=run_id,
             doc_id=doc_rec.doc_id,
             index=index,
-            doc_metadata=doc_rec.to_dict(),
+            doc_metadata=injected_metadata,
         )
         for index, part in enumerate(raw_chunks)
     ]
@@ -453,7 +476,7 @@ def store_chunks(
 
     collection = client.get_or_create_collection(name=collection_name)
     ids = [chunk.id for chunk in chunks]
-    documents = [chunk.text for chunk in chunks]
+    documents = [chunk.content for chunk in chunks]
     metadatas = [chunk.get_vector_metadata() for chunk in chunks]
 
     embeddings = embedder.embed_texts(documents)
@@ -476,7 +499,7 @@ def deactivate_old_vector_chunks(
         results = collection.get(
             where={
                 "$and": [
-                    {"relative_path": record.relative_path},
+                    {"relative_path": record.discovered_doc.relative_path},
                     {"version": record.version},
                 ]
             }

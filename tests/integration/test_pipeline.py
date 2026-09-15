@@ -61,7 +61,7 @@ def test_chromadb_store_chunks_upserts(tmp_path):
 
     def chunk(text: str, index: int) -> Chunk:
         return Chunk(
-            text=text,
+            content=text,
             run_id="run-1",
             doc_id="doc.md:v1",
             index=index,

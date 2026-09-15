@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from src.ingestion import (
+    DiscoveredDocument,
     DocumentRecord,
     FileState,
     PipelineConfig,
@@ -16,19 +17,20 @@ from src.ingestion import (
 def _record(path: str) -> DocumentRecord:
     return DocumentRecord(
         doc_id=f"{path}:v1",
-        file_name=Path(path).name,
-        relative_path=path,
-        parent_directory=str(Path(path).parent),
-        file_extension=Path(path).suffix.lower(),
-        mime_type="text/markdown",
-        source=SourceType.FILESYSTEM,
         version=1,
         version_tag="v1",
-        file_hash="hash",
-        is_active=True,
         state=FileState.NEW,
-        size_bytes=1,
-        modified_at=1.0,
+        discovered_doc=DiscoveredDocument(
+            relative_path=path,
+            file_name=Path(path).name,
+            parent_directory=str(Path(path).parent),
+            file_extension=Path(path).suffix.lower(),
+            mime_type="text/markdown",
+            file_hash="hash",
+            size_bytes=1,
+            modified_at=1.0,
+            source=SourceType.FILESYSTEM,
+        ),
     )
 
 

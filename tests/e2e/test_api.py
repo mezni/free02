@@ -21,7 +21,7 @@ def test_documents_lists_sources():
     response = client.get("/documents")
 
     assert response.status_code == 200
-    assert response.json() == ["SOP-FIN-004.md"]
+    assert "SOP-FIN-004.md" in response.json()
 
 
 def test_ingest_pipeline_is_incremental_and_idempotent(tmp_path, monkeypatch):

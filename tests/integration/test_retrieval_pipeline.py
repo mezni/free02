@@ -8,7 +8,7 @@ from src.retrieval import Query, RetrievalPipeline, StubLLM
 
 def _chunk(text: str, index: int) -> Chunk:
     return Chunk(
-        text=text,
+        content=text,
         run_id="run-1",
         doc_id="sop.md:v1",
         index=index,

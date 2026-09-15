@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.8   | Chunking & Lineage  | Chunk identity, vector metadata payload, and run→doc→chunk lineage; design doc added |
 | 0.0.7   | Document Lifecycle & Lineage | Versioned document registry with run lineage; design doc added |
 | 0.0.6   | Evaluation Pipeline  | Rank-based retrieval metrics and LLM-as-judge grounding scores |
 | 0.0.5   | Retrieval Pipeline | Embed query, vector search, context assembly, and LLM answer generation |
@@ -18,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.8] - 2026-09-14
+
+### Added
+- Chunking and lineage design (`docs/design-chunk-and-lineage.md`): chunk identity (`relative_path:version_tag:index`), the vector metadata payload, and the `run_id → doc_id → version_tag → chunk_index` lineage chain
+
+### Fixed
+- Metadata merge order in `DocumentRecord.model_post_init`: system fields now always reflect the record's own version (previously stale `prev_meta` overrode `doc_id`/`version`/`is_active`, corrupting v2 records, chunk IDs, and deletion toggles)
+
+### Changed
+- `Chunk.text` renamed to `Chunk.content`; `DocumentRecord` now embeds a `DiscoveredDocument` for raw file metadata
+- Ported unit/integration tests to the new `Chunk`/`DocumentRecord`/`DiscoveredDocument` API; e2e document listing assertion made tolerant to repo content
 
 ## [0.0.7] - 2026-09-14
 
@@ -83,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.8]: https://github.com/mezni/rag-project/releases/tag/v0.0.8
 [0.0.7]: https://github.com/mezni/rag-project/releases/tag/v0.0.7
 [0.0.6]: https://github.com/mezni/rag-project/releases/tag/v0.0.6
 [0.0.5]: https://github.com/mezni/rag-project/releases/tag/v0.0.5
