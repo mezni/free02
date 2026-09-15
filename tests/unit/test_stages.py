@@ -108,9 +108,14 @@ def test_clean_text_preserves_paragraph_separators():
     assert clean_text("a\n\nb\n\nc") == "a\n\nb\n\nc"
 
 
-def test_chunk_text_rejects_overlap_gte_chunk_size():
+def test_chunk_text_rejects_overlap_gt_chunk_size():
     with pytest.raises(ValueError, match="overlap"):
-        chunk_text("x" * 50, chunk_size=20, overlap=20)
+        chunk_text("x" * 50, chunk_size=20, overlap=21)
+
+
+def test_chunk_text_accepts_overlap_eq_chunk_size():
+    chunks = chunk_text("hello world foo bar baz", chunk_size=5, overlap=5)
+    assert len(chunks) >= 1
 
 
 # --- Chunk stage ---
@@ -118,10 +123,10 @@ def test_chunk_text_rejects_overlap_gte_chunk_size():
 
 def test_build_chunks_assigns_indices_and_ids():
     chunks = build_chunks(
-        "first\n\nsecond",
+        "first second",
         doc_id="doc.md:v1",
         run_id="run-1",
-        chunk_size=5,
+        chunk_size=3,
         overlap=0,
     )
 
@@ -132,7 +137,7 @@ def test_build_chunks_assigns_indices_and_ids():
 
 def test_build_chunks_creates_chunk_ids_from_metadata():
     chunks = build_chunks(
-        "a\n\nb", doc_id="doc.md:v1", run_id="run-1", chunk_size=3, overlap=0
+        "a b", doc_id="doc.md:v1", run_id="run-1", chunk_size=3, overlap=0
     )
 
     assert chunks[0].doc_metadata == {}

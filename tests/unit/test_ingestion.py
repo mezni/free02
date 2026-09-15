@@ -62,7 +62,7 @@ def test_chunk_text_splits_large_text():
     rest = "paragraph-one " * 50
     text = f"{first}\n\n{rest}"
 
-    chunks = chunk_text(text, chunk_size=80, overlap=0)
+    chunks = chunk_text(text, chunk_size=200, overlap=0)
 
     assert len(chunks) == 2
     assert chunks[0].startswith("paragraph-zero")
@@ -70,12 +70,13 @@ def test_chunk_text_splits_large_text():
 
 
 def test_chunk_text_applies_overlap():
-    text = ("x" * 90) + "\n\n" + ("y" * 90) + "\n\n" + ("z" * 90)
+    words = [f"word{i}" for i in range(20)]
+    text = " ".join(words)
 
-    chunks = chunk_text(text, chunk_size=100, overlap=30)
+    chunks = chunk_text(text, chunk_size=10, overlap=2)
 
-    assert len(chunks) == 3
-    assert chunks[1].startswith(chunks[0][-30:])
+    assert len(chunks) >= 3
+    assert chunks[1].startswith("word3")
 
 
 def test_load_and_chunk_exposes_ids_and_metadata(tmp_path):

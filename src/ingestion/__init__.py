@@ -21,7 +21,12 @@ from src.ingestion.pipeline import (
     load_and_chunk,
     run_pipeline,
 )
-from src.ingestion.stages.chunk import build_chunks, chunk_text
+from src.ingestion.stages.chunk import (
+    ChunkingStrategy,
+    build_chunks,
+    chunk_text,
+    chunking_strategy_for,
+)
 from src.ingestion.stages.clean import clean_text
 from src.ingestion.stages.discover import (
     compute_file_hash,
@@ -48,6 +53,7 @@ __all__ = [
     "BaseParser",
     "ChromaEmbedder",
     "Chunk",
+    "ChunkingStrategy",
     "DiscoveredDocument",
     "DocumentRecord",
     "Embedder",
@@ -62,6 +68,7 @@ __all__ = [
     "SourceType",
     "build_chunks",
     "chunk_text",
+    "chunking_strategy_for",
     "clean_text",
     "compute_file_hash",
     "deactivate_old_vector_chunks",

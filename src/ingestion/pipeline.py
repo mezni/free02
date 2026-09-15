@@ -15,7 +15,7 @@ from src.config import settings
 from src.core.logging import setup_logging
 from src.domain.models.chunk import Chunk
 from src.domain.models.document import DocumentRecord, FileState, SourceType
-from src.ingestion.stages.chunk import build_chunks
+from src.ingestion.stages.chunk import build_chunks, chunking_strategy_for
 from src.ingestion.stages.clean import clean_text
 from src.ingestion.stages.discover import resolve_file_lifecycles
 from src.ingestion.stages.embed import ChromaEmbedder, Embedder
@@ -82,8 +82,10 @@ def load_and_chunk(
 ) -> list[Chunk]:
     """Composite stage: parse → clean → chunk → enrich a single document record."""
     text = clean_text(parse_document(doc_rec.discovered_doc, config.raw_dir))
+    strategy = chunking_strategy_for(doc_rec.discovered_doc.file_extension)
     raw_chunks = build_chunks(
-        text, doc_rec.doc_id, run_id, config.chunk_size, config.overlap
+        text, doc_rec.doc_id, run_id, config.chunk_size, config.overlap,
+        strategy=strategy,
     )
     return enrich_chunks(raw_chunks, doc_rec)
 
