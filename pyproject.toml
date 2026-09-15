@@ -3,9 +3,12 @@ name = "rag-project"
 version = "0.0.5"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.0",
     "chromadb>=1.5.9",
     "fastapi>=0.141.1",
+    "psycopg[binary]>=3.3.5",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.53",
     "streamlit>=1.63.0",
 ]
 

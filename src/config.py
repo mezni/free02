@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     chunk_size: int = 800
     overlap: int = 100
 
+    database_url: str = "postgresql+psycopg://rag:rag@localhost:5432/rag"
+
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
