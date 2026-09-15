@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.13  | LlamaIndex Parsers | Parsers reimplemented on LlamaIndex (SimpleDirectoryReader + MarkdownNodeParser) |
 | 0.0.12  | DB Repositories   | Repository layer over SQLAlchemy + pgvector for documents, chunks, runs, embeddings |
 | 0.0.11  | DB & Migrations    | PostgreSQL/pgvector via docker-compose; Alembic migration scaffold |
 | 0.0.10  | Stage-Based Ingestion | Ingestion split into discrete stages (discover, parse, clean, chunk, enrich, embed, persist) |
@@ -23,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.13] - 2026-09-15
+
+### Changed
+- `MarkdownParser` reimplemented on LlamaIndex: text loaded via `SimpleDirectoryReader`, section structure produced by `MarkdownNodeParser` (heading-aware split that ignores headings inside fenced code blocks), then reconstructed into the existing flat `Section` list with hierarchical content scoping
+- `PlainTextParser` now loads text and file metadata through `SimpleDirectoryReader` (no structural extraction)
+- Added `src/ingestion/parsers/_loaders.py` shared LlamaIndex loader; public `BaseParser`/`ParsedDocument`/`Section` API and the extension-based parser dispatcher are unchanged
+
+### Added
+- Dependency: `llama-index-core`
+- Parser metadata now includes LlamaIndex file info (`file_path`, `file_name`, `file_type`, `file_size`, `creation_date`, `last_modified_date`)
 
 ## [0.0.12] - 2026-09-14
 
@@ -144,6 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.13]: https://github.com/mezni/rag-project/releases/tag/v0.0.13
 [0.0.12]: https://github.com/mezni/rag-project/releases/tag/v0.0.12
 [0.0.11]: https://github.com/mezni/rag-project/releases/tag/v0.0.11
 [0.0.10]: https://github.com/mezni/rag-project/releases/tag/v0.0.10
