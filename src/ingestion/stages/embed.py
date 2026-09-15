@@ -1,8 +1,11 @@
-"""Embed stage: text-embedding abstraction over Chroma's default embedder."""
+"""Embed stage: text-embedding abstraction over LlamaIndex's HuggingFace embed model."""
 
 from abc import ABC, abstractmethod
 
-from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+from llama_index.core import Settings
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+
+Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 class Embedder(ABC):
@@ -12,12 +15,7 @@ class Embedder(ABC):
 
 
 class ChromaEmbedder(Embedder):
-    _default_fn: DefaultEmbeddingFunction | None = None
-
-    def __init__(self) -> None:
-        if ChromaEmbedder._default_fn is None:
-            ChromaEmbedder._default_fn = DefaultEmbeddingFunction()
-        self._fn = ChromaEmbedder._default_fn
+    """Chroma-compatible embedder delegating to LlamaIndex ``Settings.embed_model``."""
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        return self._fn(texts)
+        return Settings.embed_model.get_text_embedding_batch(texts)

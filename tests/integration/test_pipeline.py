@@ -15,7 +15,8 @@ def test_run_pipeline_ingests_markdown(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "doc.md").write_text(
-        ("word " * 200) + "\n\n" + ("zebra " * 200), encoding="utf-8"
+        "\n\n".join(f"# Section {i}\n{'word ' * 50}" for i in range(4)),
+        encoding="utf-8",
     )
     persist = tmp_path / "chroma"
     config = PipelineConfig(raw_dir=raw, persist_dir=persist)

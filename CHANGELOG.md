@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.15  | LlamaIndex Embeddings | HuggingFaceEmbedding (BAAI/bge-small-en-v1.5) via Settings.embed_model |
 | 0.0.14  | LlamaIndex Chunking | Document Structure-Based Chunking (MarkdownNodeParser) for markdown; Fixed-Size Chunking (TokenTextSplitter) for others |
 | 0.0.13  | LlamaIndex Parsers | Parsers reimplemented on LlamaIndex (SimpleDirectoryReader + MarkdownNodeParser) |
 | 0.0.12  | DB Repositories   | Repository layer over SQLAlchemy + pgvector for documents, chunks, runs, embeddings |
@@ -25,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.15] - 2026-09-15
+
+### Changed
+- Embed stage reimplemented on LlamaIndex: `Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")`; `ChromaEmbedder.embed_texts()` delegates to `get_text_embedding_batch()` via the global `Settings`
+- Replaced Chroma's `DefaultEmbeddingFunction`; the `Embedder` abstract interface is unchanged (pipeline/retrieval callers unaffected)
+
+### Added
+- Dependency: `llama-index-embeddings-huggingface` (pulls in `torch`, `transformers`); 384-d embedding model matches `EMBEDDING_DIM=384` in the DB chunk model
 
 ## [0.0.14] - 2026-09-15
 
@@ -164,6 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.15]: https://github.com/mezni/rag-project/releases/tag/v0.0.15
 [0.0.14]: https://github.com/mezni/rag-project/releases/tag/v0.0.14
 [0.0.13]: https://github.com/mezni/rag-project/releases/tag/v0.0.13
 [0.0.12]: https://github.com/mezni/rag-project/releases/tag/v0.0.12
