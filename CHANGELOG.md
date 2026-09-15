@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.17  | Streamlit Run History | Streamlit button showing important pipeline run info + import bootstrap fix |
 | 0.0.16  | pgvector Persistence | Persistence moved from ChromaDB to PostgreSQL/pgvector; ChromaDB removed |
 | 0.0.15  | LlamaIndex Embeddings | HuggingFaceEmbedding (BAAI/bge-small-en-v1.5) via Settings.embed_model |
 | 0.0.14  | LlamaIndex Chunking | Document Structure-Based Chunking (MarkdownNodeParser) for markdown; Fixed-Size Chunking (TokenTextSplitter) for others |
@@ -28,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-09-15
+
+### Added
+- Streamlit app run-history view: a button toggles "Pipeline Run History", rendering the latest 20 runs with status badge (success/failed/running), duration, started-at timestamp, new/modified/deleted/metric counts, chunks created, unchanged count, source, and error message on failure
+
+### Fixed
+- `streamlit run src/app.py` failed with `ModuleNotFoundError: No module named 'src'` because streamlit only adds the script's directory (`src/`) to `sys.path`; `app.py` now inserts the project root before package imports
+
 ## [0.0.16] - 2026-09-15
 
 ### Changed
@@ -40,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `src/db/mappers.py`: domain-model ↔ ORM converters (`document_to_orm`, `document_from_orm`, `chunk_to_orm`)
-- Streamlit app run-history view: "Show Pipeline Runs" button renders recent runs (status badge, duration, new/modified/deleted counts, chunks, error message)
 - `tests/conftest.py`: shared Postgres/pgvector schema fixture and per-test table cleanup; integration/unit tests re-pointed from Chroma temp dirs to `db_session`
 
 ## [0.0.15] - 2026-09-15
@@ -190,6 +198,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.17]: https://github.com/mezni/rag-project/releases/tag/v0.0.17
 [0.0.16]: https://github.com/mezni/rag-project/releases/tag/v0.0.16
 [0.0.15]: https://github.com/mezni/rag-project/releases/tag/v0.0.15
 [0.0.14]: https://github.com/mezni/rag-project/releases/tag/v0.0.14
