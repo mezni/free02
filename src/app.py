@@ -2,7 +2,10 @@
 
 import streamlit as st
 
+from src.core.logging import setup_logging
 from src.ingestion import PipelineConfig, run_pipeline, scan_documents
+
+setup_logging()
 
 st.set_page_config(page_title="rag-project", layout="wide")
 st.title("rag-project")

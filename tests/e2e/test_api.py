@@ -1,13 +1,10 @@
 """End-to-end tests against the FastAPI application."""
 
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src import api
 
-app = FastAPI()
-app.include_router(api.router)
-client = TestClient(app)
+client = TestClient(api.create_app())
 
 
 def test_health():

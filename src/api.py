@@ -1,8 +1,11 @@
 """REST API layer."""
 
-from fastapi import APIRouter
+from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel
 
+from src.core.logging import setup_logging
 from src.ingestion import PipelineConfig, run_pipeline, scan_documents
 
 router = APIRouter()
@@ -30,3 +33,15 @@ def list_documents() -> list[str]:
 def ingest() -> IngestResponse:
     _, chunks = run_pipeline(PipelineConfig())
     return IngestResponse(ingested=len(chunks))
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    setup_logging()
+    yield
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="rag-project", lifespan=lifespan)
+    app.include_router(router)
+    return app
