@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Feature Domain     | Key Objective |
 |---------|--------------------|---------------|
+| 0.0.14  | LlamaIndex Chunking | Document Structure-Based Chunking (MarkdownNodeParser) for markdown; Fixed-Size Chunking (TokenTextSplitter) for others |
 | 0.0.13  | LlamaIndex Parsers | Parsers reimplemented on LlamaIndex (SimpleDirectoryReader + MarkdownNodeParser) |
 | 0.0.12  | DB Repositories   | Repository layer over SQLAlchemy + pgvector for documents, chunks, runs, embeddings |
 | 0.0.11  | DB & Migrations    | PostgreSQL/pgvector via docker-compose; Alembic migration scaffold |
@@ -24,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.0.1   | Project Setup      | Initialize project with `uv`, venv, ruff, and core docs |
 
 ## [Unreleased]
+
+## [0.0.14] - 2026-09-15
+
+### Changed
+- Chunk stage reimplemented on LlamaIndex: **Document Structure-Based Chunking** (MarkdownNodeParser) for markdown files, **Fixed-Size Chunking** (TokenTextSplitter) for all other formats
+- Added `ChunkingStrategy` enum and `chunking_strategy_for()` to select chunking approach by file extension
+- Pipeline auto-selects strategy from discovered document's extension; public `build_chunks()` and `chunk_text()` signatures unchanged (accept `strategy=` kwarg)
 
 ## [0.0.13] - 2026-09-15
 
@@ -156,6 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Virtual environment, `ruff` dev dependency
 - `README.md`, `CHANGELOG.md`, Python `.gitignore`
 
+[0.0.14]: https://github.com/mezni/rag-project/releases/tag/v0.0.14
 [0.0.13]: https://github.com/mezni/rag-project/releases/tag/v0.0.13
 [0.0.12]: https://github.com/mezni/rag-project/releases/tag/v0.0.12
 [0.0.11]: https://github.com/mezni/rag-project/releases/tag/v0.0.11
