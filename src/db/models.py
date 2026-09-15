@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.base import Base
@@ -32,7 +33,7 @@ class DocumentRecord(Base):
     )
 
     tenant_id: Mapped[str] = mapped_column(String(128), index=True, default="default_tenant")
-    access_roles: Mapped[list] = mapped_column(JSON, default=list)
+    access_roles: Mapped[list] = mapped_column(JSONB, default=list)
     classification: Mapped[str] = mapped_column(String(32), default="internal")
     department: Mapped[str] = mapped_column(String(64), default="")
     category: Mapped[str] = mapped_column(String(64), default="")
@@ -62,7 +63,7 @@ class Chunk(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     chunk_index: Mapped[int] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)
-    doc_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    doc_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     embedding: Mapped[list] = mapped_column(Vector(EMBEDDING_DIM))
     created_at: Mapped[datetime] = mapped_column(
@@ -101,7 +102,7 @@ class RunEvent(Base):
     event_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(64), index=True)
     event_type: Mapped[str] = mapped_column(String(64))
-    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
